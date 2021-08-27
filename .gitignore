@@ -13,3 +13,5 @@ pom.xml.asc
 
 # Default ignored files
 /synergy-test-normaliser.iws
+/synergy-test-normaliser.iml
+/synergy-test-normaliser.ipr

@@ -1,12 +1,11 @@
 (ns synergy-test-normaliser.core
   (:require [uswitch.lambada.core :refer [deflambdafn]]
-            [clojure.data.json :as json]
+            [cheshire.core :as json]
             [clojure.java.io :as io]
             [cognitect.aws.client.api :as aws]
             [synergy-specs.events :as synspec]
-            [clojure.spec.alpha :as s]
             [synergy-events-stdlib.core :as stdlib]
-            [taoensso.timbre :as timbre
+            [taoensso.timbre
              :refer [log trace debug info warn error fatal report
                      logf tracef debugf infof warnf errorf fatalf reportf
                      spy get-env]])
@@ -39,10 +38,10 @@
    }
   ))
 
-(defn process-event [event-content event-type]
+(defn process-event [event-content]
   (if (empty? @snsArnPrefix)
     (stdlib/set-up-topic-table snsArnPrefix eventStoreTopic ssm))
-  (let [jevent (json/read-str event-content :key-fn keyword)
+  (let [jevent (json/parse-string event-content true)
         tevent (generate-new-event jevent)
         wevent (synspec/wrap-std-event tevent)]
     (info "JEVENT : " jevent)
@@ -56,13 +55,13 @@
   (info "Raw event: " (print-str event))
   (let [deduced-type (stdlib/check-event-type event)
         event-content (stdlib/get-event-data event deduced-type)]
-  (process-event event-content deduced-type)))
+  (process-event event-content)))
 
 
 (deflambdafn synergy-test-normaliser.core.Route
              [in out ctx]
              "Takes a JSON event in standard Synergy Event form from the Message field, convert to map and send to routing function"
-             (let [event (json/read (io/reader in) :key-fn keyword)
+             (let [event (json/parse-stream (io/reader in) true)
                    res (handle-event event)]
                (with-open [w (io/writer out)]
-                 (json/write res w))))
+                 (json/generate-stream res w {:pretty true}))))
